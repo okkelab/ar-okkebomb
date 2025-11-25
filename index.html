@@ -9,7 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
 
-    <script>
+   <script>
       AFRAME.registerComponent('sprite-sheet', {
         schema: {
           cols: {type: 'number', default: 1},
@@ -19,33 +19,53 @@
           loop: {type: 'boolean', default: true}
         },
         init: function () {
-          this.timer = 0; this.currentFrame = 0;
-          this.mesh = this.el.getObject3D('mesh');
-          if (!this.mesh || !this.mesh.material.map) return;
-          this.texture = this.mesh.material.map;
-          // Configura o tiling da textura baseado nas colunas e linhas
-          this.texture.repeat.set(1 / this.data.cols, 1 / this.data.rows);
-          this.updateOffset();
+          this.timer = 0;
+          this.currentFrame = 0;
+          this.textureLoaded = false;
+
+          // Função interna para configurar a textura quando ela estiver pronta
+          this.setupTexture = () => {
+            this.mesh = this.el.getObject3D('mesh');
+            if (this.mesh && this.mesh.material.map) {
+                this.texture = this.mesh.material.map;
+                // AQUI é onde a mágica acontece: recorta a imagem
+                this.texture.repeat.set(1 / this.data.cols, 1 / this.data.rows);
+                this.updateOffset();
+                this.textureLoaded = true;
+            }
+          };
+
+          // Tenta rodar imediatamente (caso já esteja em cache)
+          this.setupTexture();
+
+          // Se não der certo, fica esperando o evento de carregamento do A-Frame
+          this.el.addEventListener('materialtextureloaded', () => {
+              this.setupTexture();
+          });
         },
         tick: function (time, timeDelta) {
-          if (!this.texture) return;
+          // Se a textura ainda não carregou, não faz nada
+          if (!this.textureLoaded || !this.texture) return;
+
           this.timer += timeDelta;
-          // Controle de FPS para trocar o frame
+          
           if (this.timer > 1000 / this.data.fps) {
             this.currentFrame++;
+            
             if (this.currentFrame >= this.data.totalFrames) {
-              // Reinicia ou para no último frame dependendo do loop
               this.currentFrame = this.data.loop ? 0 : this.data.totalFrames - 1;
             }
+            
             this.updateOffset();
             this.timer = 0;
           }
         },
         updateOffset: function () {
-          // Calcula a posição exata do frame atual na grade
+          if (!this.textureLoaded) return;
+          
           const col = this.currentFrame % this.data.cols;
           const row = Math.floor(this.currentFrame / this.data.cols);
-          // Move a textura para a posição correta (Y invertido no WebGL)
+          
           this.texture.offset.x = col / this.data.cols;
           this.texture.offset.y = (this.data.rows - 1 - row) / this.data.rows;
         }
