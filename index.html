@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Okke Bomb T-shirt | AR Experience</title>
+    <title>WebAR Multitarget Spritesheet</title>
     
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-extras@7.2.0/dist/aframe-extras.min.js"></script>
 
-   <script>
+    <script>
       AFRAME.registerComponent('sprite-sheet', {
         schema: {
           cols: {type: 'number', default: 1},
@@ -23,37 +22,44 @@
           this.currentFrame = 0;
           this.textureLoaded = false;
 
-          // Função interna para configurar a textura quando ela estiver pronta
+          // Função auxiliar para configurar a textura assim que estiver disponível
           this.setupTexture = () => {
             this.mesh = this.el.getObject3D('mesh');
+            // Verifica se a malha e o mapa de textura existem
             if (this.mesh && this.mesh.material.map) {
                 this.texture = this.mesh.material.map;
-                // AQUI é onde a mágica acontece: recorta a imagem
+                // Configura a repetição (tiling) da textura baseado nas colunas e linhas
                 this.texture.repeat.set(1 / this.data.cols, 1 / this.data.rows);
+                // Aplica o offset inicial
                 this.updateOffset();
                 this.textureLoaded = true;
             }
           };
 
-          // Tenta rodar imediatamente (caso já esteja em cache)
+          // Tenta configurar imediatamente (caso esteja em cache)
           this.setupTexture();
 
-          // Se não der certo, fica esperando o evento de carregamento do A-Frame
+          // Se não, adiciona um ouvinte para quando a textura terminar de carregar
           this.el.addEventListener('materialtextureloaded', () => {
               this.setupTexture();
           });
         },
         tick: function (time, timeDelta) {
-          // Se a textura ainda não carregou, não faz nada
+          // Se a textura não carregou, não faz nada
           if (!this.textureLoaded || !this.texture) return;
 
           this.timer += timeDelta;
-          
+          // Controle de FPS usando o delta time
           if (this.timer > 1000 / this.data.fps) {
             this.currentFrame++;
             
+            // Lógica de Loop
             if (this.currentFrame >= this.data.totalFrames) {
-              this.currentFrame = this.data.loop ? 0 : this.data.totalFrames - 1;
+              if (this.data.loop) {
+                this.currentFrame = 0;
+              } else {
+                this.currentFrame = this.data.totalFrames - 1; // Para no último frame se loop for false
+              }
             }
             
             this.updateOffset();
@@ -61,12 +67,12 @@
           }
         },
         updateOffset: function () {
-          if (!this.textureLoaded) return;
-          
+           // Cálculo matemático para mover a "janela" de visualização da textura
           const col = this.currentFrame % this.data.cols;
           const row = Math.floor(this.currentFrame / this.data.cols);
           
           this.texture.offset.x = col / this.data.cols;
+          // Inversão do eixo Y necessária para coordenadas de textura WebGL
           this.texture.offset.y = (this.data.rows - 1 - row) / this.data.rows;
         }
       });
@@ -82,23 +88,34 @@
       device-orientation-permission-ui="enabled: false">
 
         <a-assets>
-            <img id="animacao-texture" src="./animacao_sprite.png" crossorigin="anonymous">
-        </a-assets>
+            <img id="tex-anim0" src="./animacao0.png" crossorigin="anonymous">
+            <img id="tex-anim1" src="./animacao1.png" crossorigin="anonymous">
+            </a-assets>
 
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         <a-entity mindar-image-target="targetIndex: 0">
-            
             <a-image 
-                src="#animacao-texture" 
+                src="#tex-anim0" 
                 position="0 0 0" 
-                scale="1.437 1 1" 
+                scale="1 1 1" 
                 rotation="0 0 0" 
                 alpha-test="0.5"
                 sprite-sheet="cols: 5; rows: 6; totalFrames: 26; fps: 24; loop: true">
             </a-image>
-            
         </a-entity>
-    </a-scene>
+
+        <a-entity mindar-image-target="targetIndex: 1">
+            <a-image 
+                src="#tex-anim1" 
+                position="0 0 0" 
+                scale="1 1 1" 
+                rotation="0 0 0" 
+                alpha-test="0.5"
+                sprite-sheet="cols: 5; rows: 4; totalFrames: 16; fps: 24; loop: true">
+            </a-image>
+        </a-entity>
+
+        </a-scene>
 </body>
 </html>
